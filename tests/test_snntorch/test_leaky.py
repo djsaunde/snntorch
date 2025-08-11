@@ -63,7 +63,6 @@ class TestLeaky:
         spk_rec = []
 
         for i in range(2):
-
             spk, mem = leaky_instance(input_[i], mem)
             mem_rec.append(mem)
             spk_rec.append(spk)

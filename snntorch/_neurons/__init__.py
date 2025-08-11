@@ -12,6 +12,7 @@ __neuron__ = [
     "alpha",
     "lapicque",
     "leaky",
+    "leakyconv1d",
     "leakyparallel",
     "rleaky",
     "rsynaptic",
@@ -33,4 +34,5 @@ from .rsynaptic import RSynaptic
 from .sconv2dlstm import SConv2dLSTM
 from .slstm import SLSTM
 
+from .leakyconv1d import LeakyConv1d
 from .leakyparallel import LeakyParallel

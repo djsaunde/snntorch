@@ -41,7 +41,7 @@ class Leaky(LIF):
 
         # Define Network
         class Net(nn.Module):
-            def __init__(self):
+            def __init__(self, num_inputs, num_hidden, num_outputs):
                 super().__init__()
 
                 # initialize layers
@@ -50,7 +50,7 @@ class Leaky(LIF):
                 self.fc2 = nn.Linear(num_hidden, num_outputs)
                 self.lif2 = snn.Leaky(beta=beta)
 
-            def forward(self, x, mem1, spk1, mem2):
+            def forward(self, x, mem1=None, mem2=None):
                 cur1 = self.fc1(x)
                 spk1, mem1 = self.lif1(cur1, mem1)
                 cur2 = self.fc2(spk1)
@@ -194,7 +194,6 @@ class Leaky(LIF):
         return self.reset_mem()
 
     def forward(self, input_, mem=None):
-
         if not mem == None:
             self.mem = mem
 

@@ -6,7 +6,7 @@ import snntorch as snn
 def data_subset(dataset, subset, idx=0):
     """Partition the dataset by a factor of ``1/subset``
     without removing access to data and target attributes.
-
+    
     Example::
 
         from snntorch import utils
@@ -152,6 +152,7 @@ def reset(net):
     global is_rsynaptic
     global is_sconv2dlstm
     global is_slstm
+    global is_leakyconv1d
 
     is_alpha = False
     is_leaky = False
@@ -161,6 +162,7 @@ def reset(net):
     is_lapicque = False
     is_sconv2dlstm = False
     is_slstm = False
+    is_leakyconv1d = False
 
     _layer_check(net=net)
 
@@ -178,6 +180,7 @@ def _layer_check(net):
     global is_rsynaptic
     global is_sconv2dlstm
     global is_slstm
+    global is_leakyconv1d
 
     for idx in range(len(list(net._modules.values()))):
         if isinstance(list(net._modules.values())[idx], snn.Lapicque):
@@ -196,6 +199,8 @@ def _layer_check(net):
             is_sconv2dlstm = True
         if isinstance(list(net._modules.values())[idx], snn.SLSTM):
             is_slstm = True
+        if isinstance(list(net._modules.values())[idx], snn.LeakyConv1d):
+            is_leakyconv1d = True
 
 
 def _layer_reset():
@@ -226,6 +231,9 @@ def _layer_reset():
     if is_slstm:
         snn.SLSTM.reset_hidden()  # reset hidden state to 0's
         snn.SLSTM.detach_hidden()
+    if is_leakyconv1d:
+        snn.LeakyConv1d.reset_hidden()  # reset hidden state to 0's
+        snn.LeakyConv1d.detach_hidden()
 
 
 def _final_layer_check(net):
@@ -238,6 +246,8 @@ def _final_layer_check(net):
     if isinstance(list(net._modules.values())[-1], snn.RSynaptic):
         return 3
     if isinstance(list(net._modules.values())[-1], snn.Leaky):
+        return 2
+    if isinstance(list(net._modules.values())[-1], snn.LeakyConv1d):
         return 2
     if isinstance(list(net._modules.values())[-1], snn.RLeaky):
         return 2

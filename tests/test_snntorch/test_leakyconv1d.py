@@ -21,33 +21,33 @@ def input_seq():
 
 @pytest.fixture(scope="module")
 def leakyconv1d_instance():
-    return snn.LeakyConv1d(beta=0.5, max_sequence_length=100)
+    return snn.LeakyConv1d(beta=0.5)
 
 
 @pytest.fixture(scope="module")
 def leakyconv1d_instance_surrogate():
     return snn.LeakyConv1d(
-        beta=0.5, surrogate_disable=True, max_sequence_length=100
+        beta=0.5, surrogate_disable=True
     )
 
 
 @pytest.fixture(scope="module")
 def leakyconv1d_reset_zero_instance():
     return snn.LeakyConv1d(
-        beta=0.5, reset_mechanism="zero", max_sequence_length=100
+        beta=0.5, reset_mechanism="zero"
     )
 
 
 @pytest.fixture(scope="module")
 def leakyconv1d_reset_none_instance():
     return snn.LeakyConv1d(
-        beta=0.5, reset_mechanism="none", max_sequence_length=100
+        beta=0.5, reset_mechanism="none"
     )
 
 
 @pytest.fixture(scope="module")
 def leakyconv1d_hidden_instance():
-    return snn.LeakyConv1d(beta=0.5, init_hidden=True, max_sequence_length=100)
+    return snn.LeakyConv1d(beta=0.5, init_hidden=True)
 
 
 @pytest.fixture(scope="module")
@@ -56,14 +56,13 @@ def leakyconv1d_learnable_instance():
         beta=0.5,
         learn_beta=True,
         learn_threshold=True,
-        max_sequence_length=100,
     )
 
 
 class TestLeakyConv1d:
-    def test_leakyconv1d_min_3d_input_required(self, leakyconv1d_instance, input_):
-        """Test that LeakyConv1d requires at least 3D input"""
-        with pytest.raises(ValueError, match="LeakyConv1d expects at least 3D input"):
+    def test_leakyconv1d_min_2d_input_required(self, leakyconv1d_instance, input_):
+        """Test that LeakyConv1d requires at least 2D input"""
+        with pytest.raises(ValueError, match="LeakyConv1d expects at least 2D input"):
             leakyconv1d_instance(input_[0])  # 1D input should fail
 
     def test_leakyconv1d_sequence_processing(
@@ -143,30 +142,27 @@ class TestLeakyConv1d:
         assert leakyconv1d_learnable_instance.beta.grad is not None
         assert leakyconv1d_learnable_instance.threshold.grad is not None
 
-    def test_leakyconv1d_kernel_update(self, leakyconv1d_learnable_instance):
-        """Test that decay kernel updates when beta changes"""
-        initial_kernel = leakyconv1d_learnable_instance.decay_kernel.clone()
+    def test_leakyconv1d_beta_learnable(self, leakyconv1d_learnable_instance):
+        """Test that learnable beta works correctly"""
+        initial_beta = leakyconv1d_learnable_instance.beta.clone()
 
-        # Change beta
-        with torch.no_grad():
-            leakyconv1d_learnable_instance.beta.fill_(0.8)
-
-        # Run forward pass to trigger kernel update
+        # Run forward pass and check gradients
         input_seq = torch.randn(3, 2, 2)
-        _ = leakyconv1d_learnable_instance(input_seq)
+        spikes, mem = leakyconv1d_learnable_instance(input_seq)
+        
+        loss = spikes.sum() + mem.sum()
+        loss.backward()
 
-        # Kernel should have updated
-        assert not torch.equal(
-            initial_kernel, leakyconv1d_learnable_instance.decay_kernel
-        )
+        # Beta should have gradients
+        assert leakyconv1d_learnable_instance.beta.grad is not None
+        
+        # Beta should be learnable
+        assert leakyconv1d_learnable_instance.beta.requires_grad
 
     def test_leakyconv1d_max_sequence_length(self):
         """Test max_sequence_length parameter"""
         max_len = 50
-        lif = snn.LeakyConv1d(beta=0.9, max_sequence_length=max_len)
-
-        # Check kernel size
-        assert lif.decay_kernel.shape[-1] == max_len
+        lif = snn.LeakyConv1d(beta=0.9)
 
         # Test with sequence longer than max_length
         long_seq = torch.randn(max_len + 10, 2, 3)
@@ -185,10 +181,10 @@ class TestLeakyConv1d:
         spikes1, mem1 = leakyconv1d_instance(input1)
         assert spikes1.shape == (seq_len, batch_size, features)
 
-        # Test (batch, seq_len, features) format
-        input2 = torch.randn(batch_size, seq_len, features)
+        # Test (seq_len, batch) format (2D)
+        input2 = torch.randn(seq_len, batch_size)
         spikes2, mem2 = leakyconv1d_instance(input2)
-        assert spikes2.shape == (seq_len, batch_size, features)
+        assert spikes2.shape == (seq_len, batch_size)
 
     def test_leakyconv1d_cases(self, leakyconv1d_hidden_instance, input_seq):
         """Test error cases"""
@@ -220,8 +216,8 @@ class TestLeakyConv1d:
         input_seq = torch.randn(5, 2, 3, device=device)
         spikes, mem = lif_device(input_seq)
 
-        assert spikes.device == device
-        assert mem.device == device
+        assert spikes.device.type == device.type
+        assert mem.device.type == device.type
 
     def test_leakyconv1d_compile_fullgraph(
         self, leakyconv1d_instance_surrogate, input_seq

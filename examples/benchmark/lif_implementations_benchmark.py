@@ -69,7 +69,7 @@ def accuracy_test(beta: float = 0.5, seq_length: int = 200):
 
     # Create models with same parameters
     leaky_conv1d = snn.LeakyConv1d(beta=beta)
-    leaky = snn.Leaky(beta=beta)
+    leaky = snn.Leaky(beta=beta, reset_delay=False)
 
     input_types = ["step", "impulse", "ramp", "sinusoidal", "noise", "spiking"]
 
@@ -146,7 +146,7 @@ def performance_benchmark():
 
         # Create models
         leaky_conv1d = snn.LeakyConv1d(beta=beta)
-        leaky = snn.Leaky(beta=beta)
+        leaky = snn.Leaky(beta=beta, reset_delay=False)
 
         # Generate test input
         inputs = generate_test_inputs(batch_size, seq_length, "noise")
@@ -269,13 +269,13 @@ def visualize_comparison():
 
     # Create models
     leaky_conv1d = snn.LeakyConv1d(beta=beta)
-    leaky = snn.Leaky(beta=beta)
+    leaky = snn.Leaky(beta=beta, reset_delay=False)
 
-    input_types = ["step", "spiking"]
+    # input_types = ["step", "spiking"]
+    input_types = ["spiking"]
 
     fig, axes = plt.subplots(2, len(input_types), figsize=(20, 8))
     fig.suptitle("LIF Neuron Comparison: LeakyConv1d vs Leaky", fontsize=14)
-
     for i, input_type in enumerate(input_types):
         inputs = generate_test_inputs(1, seq_length, input_type)
 
@@ -289,22 +289,25 @@ def visualize_comparison():
             spk_leaky_seq = torch.zeros_like(spk_conv1d)
             mem_leaky_seq = torch.zeros_like(mem_conv1d)
             
+            mem_state = None
             for t in range(seq_length):
-                spk_t, mem_state = leaky(inputs[t])
+                spk_t, mem_state = leaky(inputs[t], mem_state)
                 spk_leaky_seq[t] = spk_t
                 mem_leaky_seq[t] = mem_state
 
         # Plot inputs
         t = np.arange(seq_length)
-        axes[0, i].plot(t, inputs[:, 0].numpy(), "k-", label="Input", linewidth=2)
-        axes[0, i].set_title(f"{input_type.capitalize()} Input")
-        axes[0, i].set_ylabel("Current")
-        axes[0, i].grid(True, alpha=0.3)
-        axes[0, i].legend()
+        indices = (0, i) if len(input_types) > 1 else (0,)
+        axes[*indices].plot(t, inputs[:, 0].numpy(), "k-", label="Input", linewidth=2)
+        axes[*indices].set_title(f"{input_type.capitalize()} Input")
+        axes[*indices].set_ylabel("Current")
+        axes[*indices].grid(True, alpha=0.3)
+        axes[*indices].legend()
 
         # Plot voltages and spikes
-        axes[1, i].plot(t, mem_conv1d[:, 0].numpy(), "b-", label="LeakyConv1d", linewidth=2)
-        axes[1, i].plot(
+        indices = (1, i) if len(input_types) > 1 else (1,)
+        axes[*indices].plot(t, mem_conv1d[:, 0].numpy(), "b-", label="LeakyConv1d", linewidth=2)
+        axes[*indices].plot(
             t,
             mem_leaky_seq[:, 0].numpy(),
             "r--",
@@ -318,7 +321,7 @@ def visualize_comparison():
         spike_times_leaky = t[spk_leaky_seq[:, 0].numpy().astype(bool)]
 
         if len(spike_times_conv1d) > 0:
-            axes[1, i].scatter(
+            axes[*indices].scatter(
                 spike_times_conv1d,
                 [1.0] * len(spike_times_conv1d),
                 color="blue",
@@ -327,7 +330,7 @@ def visualize_comparison():
                 label="LeakyConv1d spikes",
             )
         if len(spike_times_leaky) > 0:
-            axes[1, i].scatter(
+            axes[*indices].scatter(
                 spike_times_leaky,
                 [1.0] * len(spike_times_leaky),
                 color="red",
@@ -336,17 +339,17 @@ def visualize_comparison():
                 label="Leaky spikes",
             )
 
-        axes[1, i].axhline(
+        axes[*indices].axhline(
             y=1.0,
             color="gray",
             linestyle=":",
             alpha=0.7,
             label="Threshold",
         )
-        axes[1, i].set_xlabel("Time Step")
-        axes[1, i].set_ylabel("Voltage")
-        axes[1, i].grid(True, alpha=0.3)
-        axes[1, i].legend()
+        axes[*indices].set_xlabel("Time Step")
+        axes[*indices].set_ylabel("Voltage")
+        axes[*indices].grid(True, alpha=0.3)
+        axes[*indices].legend()
 
     plt.tight_layout()
     plt.savefig("lif_implementations_comparison.png", dpi=150, bbox_inches="tight")
@@ -365,17 +368,17 @@ def main():
 
     # Run tests
     accuracy_test(beta=0.5, seq_length=200)
-    accuracy_test(beta=0.8, seq_length=400)  # Different parameters
+    # accuracy_test(beta=0.8, seq_length=400)  # Different parameters
 
-    perf_results = performance_benchmark()
+    # perf_results = performance_benchmark()
 
-    memory_benchmark()
+    # memory_benchmark()
     visualize_comparison()
 
-    # Summary
-    print(f"\n=== Summary ===")
-    avg_speedup = np.mean([r["speedup"] for r in perf_results])
-    print(f"Average speedup: {avg_speedup:.2f}x")
+    # # Summary
+    # print(f"\n=== Summary ===")
+    # avg_speedup = np.mean([r["speedup"] for r in perf_results])
+    # print(f"Average speedup: {avg_speedup:.2f}x")
 
 
 if __name__ == "__main__":

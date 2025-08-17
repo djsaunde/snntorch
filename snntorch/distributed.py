@@ -422,17 +422,16 @@ def print_fsdp_strategy_guide():
     print(guide)
 
 
-# Convenience function for quick setup
 def quick_fsdp_setup(model: nn.Module, strategy: Optional[str] = None) -> nn.Module:
     """
     Quick setup for FSDP with automatic strategy selection.
     
     Args:
-        model: The SNN model to wrap
-        strategy: Optional strategy override
+        model: The SNN model to wrap.
+        strategy: Optional strategy override.
         
     Returns:
-        nn.Module: FSDP-wrapped model
+        nn.Module: FSDP-wrapped model.
     """
     # Validate setup
     if not validate_fsdp_setup():

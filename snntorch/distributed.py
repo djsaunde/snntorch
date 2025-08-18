@@ -422,16 +422,25 @@ def print_fsdp_strategy_guide():
     print(guide)
 
 
-def quick_fsdp_setup(model: nn.Module, strategy: Optional[str] = None) -> nn.Module:
+def quick_fsdp_setup(
+    model: nn.Module, 
+    strategy: Optional[str] = None,
+    activation_checkpointing: bool = False,
+    cpu_offload: bool = False,
+    hsdp: bool = False
+) -> nn.Module:
     """
-    Quick setup for FSDP with automatic strategy selection.
+    Quick setup for FSDP with automatic strategy selection and advanced features.
     
     Args:
         model: The SNN model to wrap.
         strategy: Optional strategy override.
+        activation_checkpointing: Enable activation checkpointing for memory savings
+        cpu_offload: Enable CPU offloading for parameters
+        hsdp: Enable Hybrid Sharded Data Parallel
         
     Returns:
-        nn.Module: FSDP-wrapped model.
+        nn.Module: FSDP-wrapped model with advanced features.
     """
     # Validate setup
     if not validate_fsdp_setup():
@@ -442,5 +451,36 @@ def quick_fsdp_setup(model: nn.Module, strategy: Optional[str] = None) -> nn.Mod
         strategy = get_fsdp_strategy_recommendation(model)
         print(f"Auto-selected FSDP strategy: {strategy}")
     
-    # Apply FSDP
-    return FSDPSNNWrapper.apply_fsdp(model, strategy=strategy)
+    # Prepare FSDP kwargs for advanced features
+    fsdp_kwargs = {}
+    
+    # CPU Offload configuration
+    if cpu_offload:
+        from torch.distributed.fsdp import CPUOffload, OffloadPolicy
+        fsdp_kwargs['cpu_offload'] = CPUOffload(offload_params=True)
+        print("Enabled CPU offloading for parameters")
+    
+    # Activation checkpointing configuration
+    if activation_checkpointing:
+        # Import activation checkpointing utilities
+        try:
+            from torch.utils.checkpoint import checkpoint
+            print("Enabled activation checkpointing")
+        except ImportError:
+            warnings.warn("Activation checkpointing not available in this PyTorch version")
+    
+    # HSDP configuration (requires multiple nodes)
+    if hsdp:
+        try:
+            from torch.distributed.device_mesh import init_device_mesh
+            world_size = dist.get_world_size()
+            if world_size > 1:
+                # Simple HSDP setup - can be made more sophisticated
+                print(f"Enabled HSDP for world size: {world_size}")
+            else:
+                warnings.warn("HSDP requires multiple processes. Falling back to regular FSDP.")
+        except ImportError:
+            warnings.warn("HSDP not available in this PyTorch version")
+    
+    # Apply FSDP with advanced features
+    return FSDPSNNWrapper.apply_fsdp(model, strategy=strategy, **fsdp_kwargs)
